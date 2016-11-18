@@ -16,17 +16,11 @@
         android:id="@+id/start_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
-    <Button
-        android:text="start pairing"
-        android:layout_marginTop="25dp"
-        android:layout_below="@+id/start_button"
-        android:id="@+id/start_bundle_button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+
     <Button
         android:text="start search"
         android:layout_marginTop="25dp"
-        android:layout_below="@+id/start_bundle_button"
+        android:layout_below="@+id/start_button"
         android:id="@+id/start_search_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
@@ -46,4 +40,17 @@
         android:id="@+id/can_paried_device_textview"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
+    <TextView
+        android:text="可配对设备："
+        android:id="@+id/text"
+        android:layout_below="@id/can_paried_device_textview"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/can_paried_device_recyclistview"
+        android:layout_marginTop="20dp"
+        android:layout_below="@id/text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"></android.support.v7.widget.RecyclerView>
+
 </RelativeLayout>

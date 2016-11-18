@@ -3,6 +3,8 @@ package com.creater.bluetoothdemo;
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothServerSocket;
+import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -13,11 +15,17 @@ import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Set;
 
 import butterknife.BindView;
@@ -27,8 +35,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @BindView(R.id.start_button)
     Button startButton;
-    @BindView(R.id.start_bundle_button)
-    Button startBundleButton;
+
     @BindView(R.id.stop_button)
     Button stopButton;
     @BindView(R.id.can_paried_device_textview)
@@ -36,26 +43,49 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     BluetoothAdapter bluetoothAdapter;
     StringBuilder pairedDevices;
+    CanPairedRecycleviewAdapter canPairedRecycleviewAdapter;
+    ArrayList<BluetoothDevice> mDevices;
+    boolean haveDevice = false;
 
+    @BindView(R.id.start_search_button)
+    Button startSearchButton;
+    @BindView(R.id.can_paried_device_recyclistview)
+    RecyclerView canPariedDeviceRecyclistview;
+
+
+    ServerSocket mServer;
+    InputStream mInputStream;
+    OutputStream mOutputStream;
+    BluetoothServerSocket mBluetoothServerSocket;
+    BluetoothSocket mBluetoothSocket;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
         startButton.setOnClickListener(this);
-        startBundleButton.setOnClickListener(this);
         stopButton.setOnClickListener(this);
+        startSearchButton.setOnClickListener(this);
         //请求权限在6.0中有用
         requestBluetoothPermission();
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         //每搜索到一个设备就会发送一个该广播
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        filter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        filter.addAction(BluetoothAdapter.ACTION_SCAN_MODE_CHANGED);
+        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
         this.registerReceiver(receiver, filter);
         //当全部搜索完后发送该广播
         filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
         this.registerReceiver(receiver, filter);
         pairedDevices = new StringBuilder();
-
+        mDevices = new ArrayList<>();
+        canPariedDeviceRecyclistview.setLayoutManager(new LinearLayoutManager(this));
+        canPairedRecycleviewAdapter = new CanPairedRecycleviewAdapter(MainActivity.this, mDevices, bluetoothAdapter);
+        canPariedDeviceRecyclistview.setAdapter(canPairedRecycleviewAdapter);
+        //服务端线程监视
+        mServer=new ServerSocket(this);
+        mServer.run();
     }
 
     @Override
@@ -64,23 +94,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             startBluetooth();
         } else if (v.getId() == R.id.stop_button) {
             stopBluetooth();
-        } else if (v.getId() == R.id.start_bundle_button) {
-            startPairing();
-        } else if (v.getId() == R.id.start_bundle_button) {
+        } else if (v.getId() == R.id.start_search_button) {
             startSearchBluetooth();
         }
     }
 
-    private void startPairing() {
-        Set<BluetoothDevice> pairedDeviceList = bluetoothAdapter.getBondedDevices();
-
-        for (BluetoothDevice bluetoothDevice :
-                pairedDeviceList) {
-            pairedDevices.append("++");
-            pairedDevices.append(bluetoothDevice.getName());
-        }
-        canPariedDeviceTextview.setText(pairedDevices.toString());
-    }
 
     private void startBluetooth() {
         startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), 1);
@@ -138,14 +156,45 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            Log.e("xv", "接收到广播");
             String action = intent.getAction();
+
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
-                    pairedDevices.append(device.getName() + ":" + device.getAddress());
+                    for (BluetoothDevice dev : mDevices) {
+                        if (dev.getName().equals(device.getName())) {
+                            haveDevice = true;
+                            break;
+                        }
+                    }
+                    if (!haveDevice) {
+                        pairedDevices.append(device.getName() + ":" + device.getAddress() + "---");
+                        mDevices.add(device);
+                    }
+
+                }
+                canPairedRecycleviewAdapter.notifyDataSetChanged();
+                canPariedDeviceTextview.setText(pairedDevices);
+            } else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                switch (device.getBondState()) {
+                    case BluetoothDevice.BOND_BONDING:
+                        Log.d("BlueToothTestActivity", "正在配对......");
+                        break;
+                    case BluetoothDevice.BOND_BONDED:
+                        Log.d("BlueToothTestActivity", "完成配对");
+                        //connect(device);//连接设备
+                        break;
+                    case BluetoothDevice.BOND_NONE:
+                        Log.d("BlueToothTestActivity", "取消配对");
+                    default:
+                        break;
                 }
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                //已搜素完成
+                //已搜素完
+                canPairedRecycleviewAdapter.notifyDataSetChanged();
+                startSearchButton.setText("search end");
                 canPariedDeviceTextview.setText(pairedDevices);
             }
         }

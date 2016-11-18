@@ -35,9 +35,7 @@ public class CanPairedRecycleviewAdapter extends RecyclerView.Adapter<CanPairedR
     private ArrayList<BluetoothDevice> mDevices;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothSocket mClientSocket;
-    private final UUID MY_UUID = UUID
-            .fromString("00001101-0000-1000-8000-00805F9B34FB");
-    OutputStream outputStream;
+
     public CanPairedRecycleviewAdapter(Context mContext, ArrayList<BluetoothDevice> devices, BluetoothAdapter adapter) {
         this.mContext = mContext;
         if (devices == null) {
@@ -75,6 +73,7 @@ public class CanPairedRecycleviewAdapter extends RecyclerView.Adapter<CanPairedR
     }
 
     private void startPairing(BluetoothAdapter adapter, int position) {
+
         if (mBluetoothAdapter.isDiscovering()) {
             mBluetoothAdapter.cancelDiscovery();
         }
@@ -85,24 +84,14 @@ public class CanPairedRecycleviewAdapter extends RecyclerView.Adapter<CanPairedR
                 if (device.getBondState() == BluetoothDevice.BOND_NONE) {
                     //利用反射方法调用BluetoothDevice.createBond(BluetoothDevice remoteDevice);
                     Method createBondMethod = BluetoothDevice.class
-                            .getMethod("cancelPairingUserInput");
+                            .getMethod("createBond");
                     //BluetoothUtils.createBond(BluetoothDevice.class,device);
                     Log.e("BlueToothTestActivity", "开始配对"+createBondMethod.getName());
                     boolean pairing=(Boolean) createBondMethod.invoke(device);
 
-                }else if(device.getBondState() == BluetoothDevice.BOND_BONDED){
-                    Log.e("xv","配对成功");
-                    mClientSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
-                    mClientSocket.connect();
-                    outputStream=mClientSocket.getOutputStream();
-                    if (outputStream!=null){
-                        outputStream.write("first bluetooth message".getBytes("UTF-8"));
-                    }
                 }
 
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
         } catch (IllegalAccessException e) {

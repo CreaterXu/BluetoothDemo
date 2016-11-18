@@ -3,7 +3,6 @@ package com.creater.bluetoothdemo;
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -20,16 +19,20 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
-import java.io.InputStream;
+import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
-import java.util.Set;
+import java.util.UUID;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import butterknife.OnClick;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -54,10 +57,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     ServerSocket mServer;
-    InputStream mInputStream;
-    OutputStream mOutputStream;
-    BluetoothServerSocket mBluetoothServerSocket;
-    BluetoothSocket mBluetoothSocket;
+    @BindView(R.id.make_showed_togglebutton)
+    ToggleButton makeShowedTogglebutton;
+    @BindView(R.id.send_msg_button)
+    Button sendMsgButton;
+    @BindView(R.id.activity_main)
+    RelativeLayout activityMain;
+
+    private BluetoothDevice device;
+    private BluetoothSocket mClientSocket;
+    private final UUID MY_UUID = UUID
+            .fromString("00001101-0000-1000-8000-00805F9B34FB");
+    OutputStream outputStream;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -83,9 +95,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         canPariedDeviceRecyclistview.setLayoutManager(new LinearLayoutManager(this));
         canPairedRecycleviewAdapter = new CanPairedRecycleviewAdapter(MainActivity.this, mDevices, bluetoothAdapter);
         canPariedDeviceRecyclistview.setAdapter(canPairedRecycleviewAdapter);
-        //服务端线程监视
-        mServer=new ServerSocket(this);
-        mServer.run();
+
     }
 
     @Override
@@ -99,6 +109,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+
+    @OnClick(R.id.make_showed_togglebutton)
+    public void showOurBluetooth() {
+        if (makeShowedTogglebutton.getText() == makeShowedTogglebutton.getTextOff()) {
+            Intent sIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+            sIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 3600);
+            startActivityForResult(sIntent, 2);
+        } else {
+            Intent sIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(sIntent, 1);
+        }
+    }
 
     private void startBluetooth() {
         startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), 1);
@@ -124,7 +146,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case 1:
                 Toast.makeText(this, "start bluetooth success", Toast.LENGTH_SHORT).show();
                 break;
-
+            case 2:
+                Toast.makeText(this, "一小时内其他设备可以搜索到此设备", Toast.LENGTH_SHORT).show();
+                break;
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
@@ -149,6 +173,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    @OnClick(R.id.send_msg_button)
+    public void sendMessage(){
+        try {
+            mClientSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
+            mClientSocket.connect();
+            outputStream = mClientSocket.getOutputStream();
+            if (outputStream != null) {
+                try {
+                    outputStream.write("first bluetooth message".getBytes("UTF-8"));
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     /**
      * 定义广播接收器
@@ -160,7 +202,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             String action = intent.getAction();
 
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
                     for (BluetoothDevice dev : mDevices) {
                         if (dev.getName().equals(device.getName())) {
@@ -177,14 +219,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 canPairedRecycleviewAdapter.notifyDataSetChanged();
                 canPariedDeviceTextview.setText(pairedDevices);
             } else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 switch (device.getBondState()) {
                     case BluetoothDevice.BOND_BONDING:
                         Log.d("BlueToothTestActivity", "正在配对......");
                         break;
                     case BluetoothDevice.BOND_BONDED:
                         Log.d("BlueToothTestActivity", "完成配对");
-                        //connect(device);//连接设备
+                        sendMsgButton.setVisibility(View.VISIBLE);
                         break;
                     case BluetoothDevice.BOND_NONE:
                         Log.d("BlueToothTestActivity", "取消配对");
@@ -199,4 +241,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
     };
+
+
 }

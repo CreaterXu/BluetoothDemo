@@ -31,9 +31,25 @@
         android:layout_below="@+id/start_search_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
+    <ToggleButton
+        android:id="@+id/make_showed_togglebutton"
+        android:layout_below="@id/stop_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textOff="can't looked the device"
+        android:textOn="let them looed the device"
+        ></ToggleButton>
+    <Button
+        android:id="@+id/send_msg_button"
+        android:layout_below="@id/make_showed_togglebutton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="send message"
+        android:visibility="gone"
+        />
     <TextView
-        android:layout_below="@+id/stop_button"
-        android:layout_marginTop="30dp"
+        android:layout_below="@+id/send_msg_button"
+        android:layout_marginTop="10dp"
         android:text="xxx"
         android:textAlignment="center"
         android:textCursorDrawable="@mipmap/ic_launcher"

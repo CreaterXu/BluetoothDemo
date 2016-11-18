@@ -1,4 +1,4 @@
-package com.creater.bluetoothdemo;
+package com.creater.bluetoothserver;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothServerSocket;
@@ -29,7 +29,7 @@ public class ServerSocket extends Thread {
     private final String NAME = "Bluetooth_Socket";
 
 
-    public ServerSocket(Context mContext,BluetoothAdapter bluetoothAdapter) {
+    public ServerSocket(Context mContext, BluetoothAdapter bluetoothAdapter) {
         this.mContext = mContext;
         try {
             mBluetoothAdapter=bluetoothAdapter;
